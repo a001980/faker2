@@ -462,6 +462,7 @@ async function predictionFruit() {
     message += `【预测】${waterD === 1 ? '明天' : waterD === 2 ? '后天' : waterD + '天之后'}(${timeFormat(24 * 60 * 60 * 1000 * waterD + Date.now())}日)可兑换水果🍉`
 }
 //浇水十次
+/*
 async function doTenWater() {
     jdFruitBeanCard = $.getdata('jdFruitBeanCard') ? $.getdata('jdFruitBeanCard') : jdFruitBeanCard;
     if ($.isNode() && process.env.FRUIT_BEAN_CARD) {
@@ -512,6 +513,7 @@ async function doTenWater() {
         console.log('\n今日已完成10次浇水任务\n');
     }
 }
+*/
 //领取首次浇水奖励
 async function getFirstWaterAward() {
     await taskInitForFarm();
