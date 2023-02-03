@@ -31,4 +31,11 @@ jobs:
           destination_branch: "faker2"
           github_token: ${{ secrets.PAT }}
 
-      
+      - name: Merge main from faker2
+        uses: devmasx/merge-branch@v1.3.1
+        if: env.PAT
+        with:
+          type: now
+          from_branch: faker2
+          target_branch: main
+          github_token: ${{ secrets.PAT }}
