@@ -2,7 +2,7 @@
 name: merge-from-faker2
 on:
   schedule:
-    - cron: '1 */2 * * *'
+    - cron: '1 */3 * * *'
   workflow_dispatch:
   watch:
     types: started
