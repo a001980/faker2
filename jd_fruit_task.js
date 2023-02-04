@@ -271,7 +271,7 @@ async function doTenWater() {
     }
     if ($.farmTask.totalWaterTaskInit.totalWaterTaskTimes < $.farmTask.totalWaterTaskInit.totalWaterTaskLimit) {
         console.log(`\n准备浇水十次`);
-        let waterCount = 8;
+        let waterCount = 10;
         isFruitFinished = false;
         for (; waterCount < $.farmTask.totalWaterTaskInit.totalWaterTaskLimit - $.farmTask.totalWaterTaskInit.totalWaterTaskTimes; waterCount++) {
             console.log(`第${waterCount + 1}次浇水`);
