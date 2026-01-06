@@ -115,7 +115,7 @@ let args_xh = {
    * C商品原价99元，试用价1元，如果下面设置为50，那么C商品将会被加入到待提交的试用组
    * 默认为0
    * */
-  jdPrice: process.env.JD_TRY_PRICE * 1 || 20,
+  jdPrice: process.env.JD_TRY_PRICE * 1 || 10,
   /*
    * 下面有一个function是可以获取tabId列表，名为try_tabList
    * 可设置环境变量：JD_TRY_TABID，用@进行分隔
@@ -138,7 +138,7 @@ let args_xh = {
    * C商品原价49元，现在试用价1元，如果下面设置为1，那C商品也会被添加到带提交试用组，因为1 = 1
    * 可设置环境变量：JD_TRY_TRIALPRICE，默认为0
    * */
-  trialPrice: process.env.JD_TRY_TRIALPRICE * 1 || 0,
+  trialPrice: process.env.JD_TRY_TRIALPRICE * 1 || 0.01,
   /*
    * 最小提供数量，例如试用商品只提供2份试用资格，当前设置为1，则会进行申请
    * 若只提供5分试用资格，当前设置为10，则不会申请
@@ -275,7 +275,7 @@ let args_xh = {
           }
           await try_apply(trialActivityTitleList[i], trialActivityIdList[i]);
           console.log(`间隔等待中，请等待15秒 \n`);
-          await $.wait(150000);
+          await $.wait(15000);
         }
         console.log('试用申请执行完毕...');
         $.giveupNum = 0;
@@ -592,142 +592,161 @@ async function initJsToken() {
  * 获取商品列表并且过滤
  */
 async function try_feedsList(tabId, page) {
-  const sign = await h5stSign(
-    {
-      functionId: 'try_SpecFeedList',
-      appid: 'newtry',
-      body: {
-        tabId: String(tabId),
-        page: Number(page),
-        version: 2,
-        source: 'default',
-        client: 'outer',
-      },
-      'x-api-eid-token': $.jsToken,
-    },
-    '35fa0',
-  );
+    const sign = await h5stSign(
+        {
+            functionId: 'qryH5BabelFloors',
+            appid: 'newtry',
+            body: {
+                activityId: '3C751WNneAUaZ8Lw8xYN7cbSE8gm',
+                pageId: '5457569',
+                uuid: '',
+                queryFloorsParam: {
+                    floorParams: { 115571575: { tabId: tabId, page: page, source: 'lottery', sessionId: 'b5a86af7e7524b50b38e66d1c96cc244' } },
+                    type: 2,
+                },
+                siteClient: 'apple',
+                siteClientVersion: '12.4.1',
+            },
+            'x-api-eid-token': $.jsToken,
+        },
+        '35fa0'
+    )
 
-  try {
-    const { data } = await api({
-      method: 'POST',
-      url: `http://api.m.jd.com/client.action`,
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        origin: 'https://prodev.m.jd.com',
-        Referer: 'https://prodev.m.jd.com/mall/active/3C751WNneAUaZ8Lw8xYN7cbSE8gm/index.html',
-        'User-Agent': $.userAgent,
-        'x-referer-page': 'https://prodev.m.jd.com/mall/active/3C751WNneAUaZ8Lw8xYN7cbSE8gm/index.html',
-        'x-rp-client': 'h5_1.0.0',
-      },
-      data: sign.qs,
-    });
+    try {
+        const { data } = await api({
+            method: 'POST',
+            url: `http://api.m.jd.com/client.action`,
+            headers: {
+                'content-type': 'application/x-www-form-urlencoded',
+                origin: 'https://prodev.m.jd.com',
+                Referer: 'https://prodev.m.jd.com/mall/active/3C751WNneAUaZ8Lw8xYN7cbSE8gm/index.html',
+                'User-Agent': $.userAgent,
+                'x-referer-page': 'https://prodev.m.jd.com/mall/active/3C751WNneAUaZ8Lw8xYN7cbSE8gm/index.html',
+                'x-rp-client': 'h5_1.0.0',
+            },
+            data: sign.qs,
+        })
 
-    let tempKeyword = ``;
-    if (data.code === '0') {
-      console.log(`第 ${size++} 次获取试用商品成功，tabId:${args_xh.tabId[$.nowTabIdIndex]} 的 第 ${page} 页`);
-      console.log(`获取到商品 ${data.data.feedList.length} 条`);
-      for (let item of data.data.feedList) {
-        if (item.applyNum === null) {
-          args_xh.printLog ? console.log(`商品未到申请时间：${item.skuTitle}\n`) : '';
-          continue;
+        let tempKeyword = ``
+        // 兼容两种结构
+        let feedList, hasNext;
+        if (data.data && data.data.feedList) {
+            feedList = data.data.feedList;
+            hasNext = data.data.hasNext;
+        } else if (
+            data.floorResponse &&
+            data.floorResponse['115571575'] &&
+            data.floorResponse['115571575'].providerData &&
+            data.floorResponse['115571575'].providerData.data &&
+            data.floorResponse['115571575'].providerData.data.feedsComponent
+        ) {
+            feedList = data.floorResponse['115571575'].providerData.data.feedsComponent.feedList;
+            hasNext = data.floorResponse['115571575'].providerData.data.feedsComponent.hasNext;
         }
-        if (trialActivityIdList.length >= args_xh.maxLength) {
-          console.log('商品列表长度已满.结束获取');
-          break;
-        }
-        if (item.applyState === 1) {
-          args_xh.printLog ? console.log(`商品已申请试用：${item.skuTitle}\n`) : '';
-          continue;
-        }
-        if (item.applyState !== null) {
-          args_xh.printLog ? console.log(`商品状态异常，未找到skuTitle\n`) : '';
-          continue;
-        }
-        if (args_xh.passZhongCao) {
-          $.isPush = true;
-          if (item.tagList.length !== 0) {
-            for (let itemTag of item.tagList) {
-              if (itemTag.tagType === 3) {
-                args_xh.printLog ? console.log('商品被过滤，该商品是种草官专属') : '';
-                $.isPush = false;
-                break;
-              } else if (itemTag.tagType === 5) {
-                args_xh.printLog ? console.log('商品被跳过，该商品是付费试用！') : '';
-                $.isPush = false;
-                break;
-              }
+        if (data.code === '0' && feedList) {
+            console.log(`第 ${size++} 次获取试用商品成功，tabId:${args_xh.tabId[$.nowTabIdIndex]} 的 第 ${page} 页`)
+            console.log(`获取到商品 ${feedList.length} 条`)
+            for (let item of feedList) {
+                if (item.applyNum === null) {
+                    args_xh.printLog ? console.log(`商品未到申请时间：${item.skuTitle}\n`) : ''
+                    continue
+                }
+                if (trialActivityIdList.length >= args_xh.maxLength) {
+                    console.log('商品列表长度已满.结束获取')
+                    break
+                }
+                if (item.applyState === 1) {
+                    args_xh.printLog ? console.log(`商品已申请试用：${item.skuTitle}\n`) : ''
+                    continue
+                }
+                if (item.applyState !== null) {
+                    args_xh.printLog ? console.log(`商品状态异常，未找到skuTitle\n`) : ''
+                    continue
+                }
+                if (args_xh.passZhongCao) {
+                    $.isPush = true
+                    if (item.tagList.length !== 0) {
+                        for (let itemTag of item.tagList) {
+                            if (itemTag.tagType === 3) {
+                                args_xh.printLog ? console.log('商品被过滤，该商品是种草官专属') : ''
+                                $.isPush = false
+                                break
+                            } else if (itemTag.tagType === 5) {
+                                args_xh.printLog ? console.log('商品被跳过，该商品是付费试用！') : ''
+                                $.isPush = false
+                                break
+                            }
+                        }
+                    }
+                }
+                if (item.skuTitle && $.isPush) {
+                    args_xh.printLog ? console.log(`检测 tabId:${args_xh.tabId[$.nowTabIdIndex]} 的 第 ${page} 页 第 ${$.nowItem++ + 1} 个商品\n${item.skuTitle}`) : ''
+                    if (args_xh.whiteList) {
+                        if (args_xh.whiteListKeywords.some((fileter_word) => item.skuTitle.includes(fileter_word))) {
+                            args_xh.printLog ? console.log(`商品白名单通过，将加入试用组，trialActivityId为${item.trialActivityId}\n`) : ''
+                            trialActivityIdList.push(item.trialActivityId)
+                            trialActivityTitleList.push(item.skuTitle)
+                        }
+                    } else {
+                        tempKeyword = ``
+                        if (parseFloat(item.jdPrice) <= args_xh.jdPrice) {
+                            args_xh.printLog ? console.log(`商品被过滤，商品价格 ${item.jdPrice} < ${args_xh.jdPrice} \n`) : ''
+                        } else if (parseFloat(item.supplyNum) < args_xh.minSupplyNum && item.supplyNum !== null) {
+                            args_xh.printLog ? console.log(`商品被过滤，提供申请的份数小于预设申请的份数 \n`) : ''
+                        } else if (parseFloat(item.applyNum) > args_xh.applyNumFilter && item.applyNum !== null) {
+                            args_xh.printLog ? console.log(`商品被过滤，已申请人数大于预设的${args_xh.applyNumFilter}人 \n`) : ''
+                        } else if (item.jdPrice === null) {
+                            args_xh.printLog ? console.log(`商品被过滤，商品无价，不能申请 \n`) : ''
+                        } else if (parseFloat(item.trialPrice) > args_xh.trialPrice) {
+                            args_xh.printLog ? console.log(`商品被过滤，商品试用价大于预设试用价 \n`) : ''
+                        } else if (args_xh.titleFilters.some((fileter_word) => (item.skuTitle.includes(fileter_word) ? (tempKeyword = fileter_word) : ''))) {
+                            args_xh.printLog ? console.log(`商品被过滤，含有关键词 ${tempKeyword}\n`) : ''
+                        } else {
+                            args_xh.printLog ? console.log(`商品通过，加入试用组，trialActivityId为${item.trialActivityId}\n`) : ''
+                            if (trialActivityIdList.indexOf(item.trialActivityId) === -1) {
+                                trialActivityIdList.push(item.trialActivityId)
+                                trialActivityTitleList.push(item.skuTitle)
+                            }
+                        }
+                    }
+                } else if ($.isPush !== false) {
+                    console.error('skuTitle解析异常')
+                    return
+                }
             }
-          }
-        }
-        if (item.skuTitle && $.isPush) {
-          args_xh.printLog ? console.log(`检测 tabId:${args_xh.tabId[$.nowTabIdIndex]} 的 第 ${page} 页 第 ${$.nowItem++ + 1} 个商品\n${item.skuTitle}`) : '';
-          if (args_xh.whiteList) {
-            if (args_xh.whiteListKeywords.some((fileter_word) => item.skuTitle.includes(fileter_word))) {
-              args_xh.printLog ? console.log(`商品白名单通过，将加入试用组，trialActivityId为${item.trialActivityId}\n`) : '';
-              trialActivityIdList.push(item.trialActivityId);
-              trialActivityTitleList.push(item.skuTitle);
-            }
-          } else {
-            tempKeyword = ``;
-            if (parseFloat(item.jdPrice) <= args_xh.jdPrice) {
-              args_xh.printLog ? console.log(`商品被过滤，商品价格 ${item.jdPrice} < ${args_xh.jdPrice} \n`) : '';
-            } else if (parseFloat(item.supplyNum) < args_xh.minSupplyNum && item.supplyNum !== null) {
-              args_xh.printLog ? console.log(`商品被过滤，提供申请的份数小于预设申请的份数 \n`) : '';
-            } else if (parseFloat(item.applyNum) > args_xh.applyNumFilter && item.applyNum !== null) {
-              args_xh.printLog ? console.log(`商品被过滤，已申请人数大于预设的${args_xh.applyNumFilter}人 \n`) : '';
-            } else if (item.jdPrice === null) {
-              args_xh.printLog ? console.log(`商品被过滤，商品无价，不能申请 \n`) : '';
-            } else if (parseFloat(item.trialPrice) > args_xh.trialPrice) {
-              args_xh.printLog ? console.log(`商品被过滤，商品试用价大于预设试用价 \n`) : '';
-            } else if (args_xh.titleFilters.some((fileter_word) => (item.skuTitle.includes(fileter_word) ? (tempKeyword = fileter_word) : ''))) {
-              args_xh.printLog ? console.log(`商品被过滤，含有关键词 ${tempKeyword}\n`) : '';
+            console.log(`当前试用组长度为：${trialActivityIdList.length}`)
+            console.log(`下一页状态:${hasNext}`)
+            if (hasNext === false) {
+                if ($.nowTabIdIndex < args_xh.tabId.length) {
+                    $.nowTabIdIndex++
+                    $.nowPage = 1
+                    $.nowItem = 1
+                    $.retrynum = 0
+                } else {
+                    // 这下是真的没了
+                    $.retrynum = 999
+                }
             } else {
-              args_xh.printLog ? console.log(`商品通过，加入试用组，trialActivityId为${item.trialActivityId}\n`) : '';
-              if (trialActivityIdList.indexOf(item.trialActivityId) === -1) {
-                trialActivityIdList.push(item.trialActivityId);
-                trialActivityTitleList.push(item.skuTitle);
-              }
+                $.nowPage++
+                $.retrynum = 0
             }
-          }
-        } else if ($.isPush !== false) {
-          console.error('skuTitle解析异常');
-          return;
-        }
-      }
-      console.log(`当前试用组长度为：${trialActivityIdList.length}`);
-      console.log(`下一页状态:${data.data.hasNext}`);
-      if (data.data.hasNext === false) {
-        if ($.nowTabIdIndex < args_xh.tabId.length) {
-          $.nowTabIdIndex++;
-          $.nowPage = 1;
-          $.nowItem = 1;
-          $.retrynum = 0;
         } else {
-          // 这下是真的没了
-          $.retrynum = 999;
+            console.log(`💩 获得试用列表失败: ${data.message}`)
         }
-      } else {
-        $.nowPage++;
-        $.retrynum = 0;
-      }
-    } else {
-      console.log(`💩 获得试用列表失败: ${data.message}`);
+    } catch (e) {
+        if (e.message === `Request failed with status code 403`) {
+            $.retrynum++
+            if ($.retrynum === 4) {
+                $.isForbidden = true
+                $.log('多次尝试失败，换个时间再试！')
+            } else {
+                console.log(`403，第 ${$.retrynum} 次重试`)
+            }
+        } else {
+            console.log(e.message)
+            console.log(`${$.name} API请求失败，请检查网路重试`)
+        }
     }
-  } catch (e) {
-    if (e.message === `Request failed with status code 403`) {
-      $.retrynum++;
-      if ($.retrynum === 4) {
-        $.isForbidden = true;
-        $.log('多次尝试失败，换个时间再试！');
-      } else {
-        console.log(`403，第 ${$.retrynum} 次重试`);
-      }
-    } else {
-      console.log(e.message);
-      console.log(`${$.name} API请求失败，请检查网路重试`);
-    }
-  }
 }
 
 async function h5stSign(body, appId, version) {
